@@ -20,7 +20,7 @@ config.host = process.env.HOST || config.host || 'localhost';
 if (config.logging) {
   try {
     winston.remove(winston.transports.Console);
-  } catch(e) {
+  } catch (e) {
     /* was not present */
   }
 
@@ -76,7 +76,7 @@ for (var name in config.documents) {
   data = fs.readFileSync(path, 'utf8');
   winston.info('loading static document', { name: name, path: path });
   if (data) {
-    preferredStore.set(name, data, function(cb) {
+    preferredStore.set(name, data, function (cb) {
       winston.debug('loaded static document', { success: cb });
     }, true);
   }
@@ -107,30 +107,58 @@ if (config.rateLimits) {
   app.use(connect_rate_limit(config.rateLimits));
 }
 
+if (preferredStore.list) {
+  app.use(route(function (router) {
+
+    router.get('/list', function (
+    /** @type {http.IncomingMessage} */ request,
+    /** @type {http.ServerResponse} */ response,
+    /** @type {Function} */  next
+    ) {
+
+      if ((request.headers['accept'] || '').indexOf('json') != -1) {
+        response.writeHead(200, { 'content-type': 'application/json; charset=UTF-8' });
+        response.end(JSON.stringify({
+          errno: 0,
+          error: '',
+          data: {
+            list: preferredStore.list()
+          }
+        }));
+      } else {
+        response.writeHead(200, { 
+          'content-type': 'text/html; charset=UTF-8',
+          'maxAge': config.staticMaxAge
+        });
+        response.end(fs.readFileSync(require('path').join(__dirname, './static/index.html'), 'utf8'));
+      }
+    })
+  }))
+}
 // first look at API calls
-app.use(route(function(router) {
+app.use(route(function (router) {
   // get raw documents - support getting with extension
 
-  router.get('/raw/:id', function(request, response) {
+  router.get('/raw/:id', function (request, response) {
     return documentHandler.handleRawGet(request, response, config);
   });
 
-  router.head('/raw/:id', function(request, response) {
+  router.head('/raw/:id', function (request, response) {
     return documentHandler.handleRawGet(request, response, config);
   });
 
   // add documents
 
-  router.post('/documents', function(request, response) {
+  router.post('/documents', function (request, response) {
     return documentHandler.handlePost(request, response);
   });
 
   // get documents
-  router.get('/documents/:id', function(request, response) {
+  router.get('/documents/:id', function (request, response) {
     return documentHandler.handleGet(request, response, config);
   });
 
-  router.head('/documents/:id', function(request, response) {
+  router.head('/documents/:id', function (request, response) {
     return documentHandler.handleGet(request, response, config);
   });
 }));
@@ -145,8 +173,8 @@ app.use(connect_st({
 
 // Then we can loop back - and everything else should be a token,
 // so route it back to /
-app.use(route(function(router) {
-  router.get('/:id', function(request, response, next) {
+app.use(route(function (router) {
+  router.get('/:id', function (request, response, next) {
     request.sturl = '/';
     next();
   });
