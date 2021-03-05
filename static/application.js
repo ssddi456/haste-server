@@ -23,7 +23,6 @@ haste_document.prototype.load = function (key, callback, lang) {
       type: 'get',
       dataType: 'json',
       success: function (res) {
-        console.log(res);
         callback({
           value: res.data.list.map((key) => '<a style="color: #8fbcc8;" href="/' + key + '">' + key + '</a>').join('\n'),
           key: key,
